@@ -5,23 +5,22 @@ from omegaconf import open_dict
 from datasets.iterable_dataset import IterableDataset
 from transformers import (
     AutoTokenizer,
-    T5ForConditionalGeneration,
+    BartForConditionalGeneration,
     AutoConfig,
 )
+from text_denoising import DataCollatorForUL2
 
 from .copied_utils import (
     compute_input_and_target_lengths,
-    DataCollatorForT5MLM,
+    DataCollatorForBARTMLM,
     tokenize_function,
     DataCollatorForNI,
 )
-from .t5_model import MyT5
 
 
 def get_model(args, config):
     klass = {
-        'hf_t5': T5ForConditionalGeneration,
-        'local_t5': MyT5,
+        'hf_bart': BartForConditionalGeneration,
     }[args.model.klass]
 
     if args.model.checkpoint_path:
@@ -30,7 +29,7 @@ def get_model(args, config):
     elif args.model.random_init:
         model = klass(config)
     else:
-        assert klass == T5ForConditionalGeneration, 'To load HFs weights you need to use HF model'
+        assert klass == BartForConditionalGeneration, 'To load HFs weights you need to use HF model'
         model = klass.from_pretrained(
             args.model.name,
             config=config,
@@ -106,35 +105,36 @@ def load_dataset_splits(args):
 
 def process_dataset(dataset_splits, args, tokenizer):
     if args.mode == 'pt':
-        final_datasets = {}
+        # final_datasets = {}
 
-        for split, dataset_split in dataset_splits.items():
+        # for split, dataset_split in dataset_splits.items():
 
-            # We increase the input_length, because instead of masking tokens T5 replaces
-            # masked spans with a single token, therefore to avoid padding we need to have
-            # longer sequences at the start, before masking
-            before_mask_input_length, target_length = compute_input_and_target_lengths(
-                inputs_length=args.data.input_length,
-                noise_density=args.data.mlm_probability,
-                mean_noise_span_length=args.data.mean_noise_span_length,
-            )
+        #     # We increase the input_length, because instead of masking tokens T5 replaces
+        #     # masked spans with a single token, therefore to avoid padding we need to have
+        #     # longer sequences at the start, before masking
+        #     before_mask_input_length, target_length = compute_input_and_target_lengths(
+        #         inputs_length=args.data.input_length,
+        #         noise_density=args.data.mlm_probability,
+        #         mean_noise_span_length=args.data.mean_noise_span_length,
+        #     )
 
-            with open_dict(args):
-                args.data.before_mask_input_length = before_mask_input_length
-                args.data.target_length = target_length
+        #     with open_dict(args):
+        #         args.data.before_mask_input_length = before_mask_input_length
+        #         args.data.target_length = target_length
 
-            dataset_split = dataset_split.map(
-                tokenize_function,
-                batched=True,
-                fn_kwargs={
-                    'tokenizer': tokenizer,
-                    'in_length': before_mask_input_length,
-                },
-                remove_columns=['text'],
-            )
+        #     dataset_split = dataset_split.map(
+        #         tokenize_function,
+        #         batched=True,
+        #         fn_kwargs={
+        #             'tokenizer': tokenizer,
+        #             'in_length': before_mask_input_length,
+        #         },
+        #         remove_columns=['text'],
+        #     )
 
-            dataset_split = dataset_split.shuffle(buffer_size=10_000, seed=args.seed)
-            final_datasets[split] = dataset_split
+        #     dataset_split = dataset_split.shuffle(buffer_size=10_000, seed=args.seed)
+        #     final_datasets[split] = dataset_split
+        final_datasets = dataset_splits
     elif args.mode == 'ft':
         final_datasets = dataset_splits
     else:
@@ -145,13 +145,9 @@ def process_dataset(dataset_splits, args, tokenizer):
 
 def get_data_collator(tokenizer, config, args):
     if args.mode == 'pt':
-        data_collator = DataCollatorForT5MLM(
+        data_collator = DataCollatorForUL2(
             tokenizer=tokenizer,
-            noise_density=args.data.mlm_probability,
-            mean_noise_span_length=args.data.mean_noise_span_length,
-            input_length=args.data.input_length,
-            target_length=args.data.target_length,
-            pad_token_id=config.pad_token_id,
+            pad_to_multiple_of=128
         )
     elif args.mode == 'ft':
         data_collator = DataCollatorForNI(
@@ -293,7 +289,7 @@ def get_lr_scheduler(optimizer, args, logger):
             LambdaLR,
         )
 
-        msg = "You are using T5 legacy LR Schedule, it's independent from the optim.base_lr"
+        msg = "You are using BART legacy LR Schedule, it's independent from the optim.base_lr"
         logger.log_message(msg)
 
         num_steps_optimizer1 = math.ceil(args.optim.total_steps * 0.9)

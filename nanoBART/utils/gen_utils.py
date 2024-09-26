@@ -27,7 +27,7 @@ def opti_flags(args):
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
-    if args.precision == 'bf16' and args.device == 'gpu' and args.model.klass == 'local_t5':
+    if args.precision == 'bf16' and args.device == 'gpu' and args.model.klass == 'local_bart':
         args.model.add_config.is_bf16 = True
 
 

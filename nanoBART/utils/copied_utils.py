@@ -13,14 +13,14 @@ import string
 
 
 @dataclass
-class DataCollatorForT5MLM:
+class DataCollatorForBARTMLM:
     """
-    [Copied from https://github.com/huggingface/transformers/blob/main/examples/flax/language-modeling/run_t5_mlm_flax.py]
-    Data collator used for T5 span-masked language modeling.
+    [Copied from https://github.com/huggingface/transformers/blob/main/examples/flax/language-modeling/run_bart_mlm_flax.py]
+    Data collator used for BART span-masked language modeling.
     It is made sure that after masking the inputs are of length `data_args.max_seq_length` and targets are also of fixed length.
-    For more information on how T5 span-masked language modeling works, one can take a look
+    For more information on how BART span-masked language modeling works, one can take a look
     at the `official paper <https://arxiv.org/pdf/1910.10683.pdf>`__
-    or the `official code for preprocessing <https://github.com/google-research/text-to-text-transfer-transformer/blob/master/t5/data/preprocessors.py>`__ .
+    or the `official code for preprocessing <https://github.com/google-research/text-to-text-transfer-transformer/blob/master/bart/data/preprocessors.py>`__ .
     Args:
         tokenizer (:class:`~transformers.PreTrainedTokenizer` or :class:`~transformers.PreTrainedTokenizerFast`):
             The tokenizer used for encoding the data.
@@ -126,7 +126,7 @@ class DataCollatorForT5MLM:
         return input_ids
 
     def random_spans_noise_mask(self, length):
-        """This function is copy of `random_spans_helper <https://github.com/google-research/text-to-text-transfer-transformer/blob/84f8bcc14b5f2c03de51bd3587609ba8f6bbd1cd/t5/data/preprocessors.py#L2682>`__ .
+        """This function is copy of `random_spans_helper <https://github.com/google-research/text-to-text-transfer-transformer/blob/84f8bcc14b5f2c03de51bd3587609ba8f6bbd1cd/bart/data/preprocessors.py#L2682>`__ .
 
         Noise mask consisting of random spans of noise tokens.
         The number of noise tokens and the number of noise spans and non-noise spans
@@ -193,9 +193,9 @@ class DataCollatorForT5MLM:
 
 
 def compute_input_and_target_lengths(inputs_length, noise_density, mean_noise_span_length):
-    """This function is copy of `random_spans_helper <https://github.com/google-research/text-to-text-transfer-transformer/blob/84f8bcc14b5f2c03de51bd3587609ba8f6bbd1cd/t5/data/preprocessors.py#L2466>`__ .
+    """This function is copy of `random_spans_helper <https://github.com/google-research/text-to-text-transfer-transformer/blob/84f8bcc14b5f2c03de51bd3587609ba8f6bbd1cd/bart/data/preprocessors.py#L2466>`__ .
 
-    [Copied from https://github.com/huggingface/transformers/blob/main/examples/flax/language-modeling/run_t5_mlm_flax.py]
+    [Copied from https://github.com/huggingface/transformers/blob/main/examples/flax/language-modeling/run_bart_mlm_flax.py]
     Training parameters to avoid padding with random_spans_noise_mask.
     When training a model with random_spans_noise_mask, we would like to set the other
     training hyperparmeters in a way that avoids padding.

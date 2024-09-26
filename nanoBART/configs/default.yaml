@@ -12,8 +12,8 @@ predict_only: false
 seed: 2137
 
 model:
-  klass: local_t5
-  name: 'google/t5-v1_1-base'
+  klass: local_bart
+  name: 'google/bart-v1_1-base'
   overwrite:
     dropout_rate: 0.0
   add_config:
