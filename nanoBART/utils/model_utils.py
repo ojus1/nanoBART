@@ -20,20 +20,20 @@ from .copied_utils import (
 
 def get_model(args, config):
     klass = {
-        'hf_bart': BartForConditionalGeneration,
+        'local_bart': BartForConditionalGeneration,
     }[args.model.klass]
 
-    if args.model.checkpoint_path:
-        model = klass(config)
-        model.load_state_dict(torch.load(args.model.checkpoint_path))
-    elif args.model.random_init:
-        model = klass(config)
-    else:
-        assert klass == BartForConditionalGeneration, 'To load HFs weights you need to use HF model'
-        model = klass.from_pretrained(
-            args.model.name,
-            config=config,
-        )
+    # if args.model.checkpoint_path:
+    #     model = klass(config)
+    #     model.load_state_dict(torch.load(args.model.checkpoint_path))
+    # elif args.model.random_init:
+    #     model = klass(config)
+    # else:
+    assert klass == BartForConditionalGeneration, 'To load HFs weights you need to use HF model'
+    model = klass.from_pretrained(
+        args.model.name,
+        config=config,
+    )
 
     with open_dict(args):
         args.n_all_param = sum([p.nelement() for p in model.parameters()])
@@ -71,23 +71,32 @@ def get_tokenizer(args):
 
 def load_dataset_splits(args):
     if args.mode == 'pt':
-        dataset = datasets.load_dataset(
-            'c4',
-            'en',
+        total = datasets.load_dataset(
+            'allenai/OLMoE-mix-0924',
+            split='train',
             streaming=True,
+        ).shuffle(seed=42, buffer_size=10_000)
+        
+
+        total = total.remove_columns(
+            ['added', 'attributes', 'created', 'doc', 'id', 'metadata']
         )
 
-        dataset = dataset.remove_columns(
-            ['timestamp', 'url']
+        dataset = total
+
+        eval_ds = datasets.load_dataset(
+            'roneneldan/TinyStories',
+            split='validation',
+            streaming=True
         )
 
         dataset_splits = {
-            'train': dataset['train'],
-            'test': dataset['validation'],
+            'train': dataset,
+            'test': eval_ds,
         }
 
         assert (
-            dataset['train'].n_shards == 1024
+            dataset.n_shards > 8
         ), "We want to have many shards for efficient processing with num_workes in PyTorch dataloader"
     elif args.mode == 'ft':
         dataset_splits = datasets.load_dataset(
@@ -105,36 +114,36 @@ def load_dataset_splits(args):
 
 def process_dataset(dataset_splits, args, tokenizer):
     if args.mode == 'pt':
-        # final_datasets = {}
+        final_datasets = {}
 
-        # for split, dataset_split in dataset_splits.items():
+        for split, dataset_split in dataset_splits.items():
 
-        #     # We increase the input_length, because instead of masking tokens T5 replaces
-        #     # masked spans with a single token, therefore to avoid padding we need to have
-        #     # longer sequences at the start, before masking
-        #     before_mask_input_length, target_length = compute_input_and_target_lengths(
-        #         inputs_length=args.data.input_length,
-        #         noise_density=args.data.mlm_probability,
-        #         mean_noise_span_length=args.data.mean_noise_span_length,
-        #     )
+            # # We increase the input_length, because instead of masking tokens T5 replaces
+            # # masked spans with a single token, therefore to avoid padding we need to have
+            # # longer sequences at the start, before masking
+            # before_mask_input_length, target_length = compute_input_and_target_lengths(
+            #     inputs_length=args.data.input_length,
+            #     noise_density=args.data.mlm_probability,
+            #     mean_noise_span_length=args.data.mean_noise_span_length,
+            # )
 
-        #     with open_dict(args):
-        #         args.data.before_mask_input_length = before_mask_input_length
-        #         args.data.target_length = target_length
+            # with open_dict(args):
+            #     args.data.before_mask_input_length = before_mask_input_length
+            #     args.data.target_length = target_length
 
-        #     dataset_split = dataset_split.map(
-        #         tokenize_function,
-        #         batched=True,
-        #         fn_kwargs={
-        #             'tokenizer': tokenizer,
-        #             'in_length': before_mask_input_length,
-        #         },
-        #         remove_columns=['text'],
-        #     )
+            dataset_split = dataset_split.map(
+                tokenize_function,
+                batched=True,
+                fn_kwargs={
+                    'tokenizer': tokenizer,
+                    'in_length': args.data.input_length,
+                },
+                remove_columns=['text'],
+            )
 
-        #     dataset_split = dataset_split.shuffle(buffer_size=10_000, seed=args.seed)
-        #     final_datasets[split] = dataset_split
-        final_datasets = dataset_splits
+            dataset_split = dataset_split.shuffle(buffer_size=10_000, seed=args.seed)
+            final_datasets[split] = dataset_split
+        # final_datasets = dataset_splits
     elif args.mode == 'ft':
         final_datasets = dataset_splits
     else:

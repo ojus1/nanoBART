@@ -13,37 +13,35 @@ seed: 2137
 
 model:
   klass: local_bart
-  name: 'google/bart-v1_1-base'
-  overwrite:
-    dropout_rate: 0.0
+  name: '/root/Projects/nanoBART/bartified-flan-t5-xl'
   add_config:
-    is_bf16: false
-  checkpoint_path: ''
-  random_init: true
-  compile: false # Pytorch 2.0
+    is_bf16: true
+  checkpoint_path: '/root/Projects/nanoBART/bartified-flan-t5-xl'
+  random_init: false
+  compile: true # Pytorch 2.0
 
 data:
   input_length: 512
   mlm_probability: 0.15
   mean_noise_span_length: 3.0
-  num_workers: 8
+  num_workers: 16
 
 optim:
-  name: adamwscale
-  base_lr: 2e-2
+  name: adafactor
+  base_lr: 2e-5
   batch_size: 128
-  total_steps: 65536
+  total_steps: 1000000
   epochs: -1 # If it's > 0 it overwrites total_steps
-  warmup_steps: 10000
+  warmup_steps: 1000
   lr_scheduler: cosine
   weight_decay: 0.0
   grad_clip: 1.0
   grad_acc: 1
-  final_cosine: 1e-5
+  final_cosine: 1e-6
 
 eval:
   every_steps: 100000 # Eval once in the end
-  steps: 500
+  steps: 10000
 
 checkpoint:
   every_steps: 100000 # Save checkpoint once in the end
@@ -51,8 +49,8 @@ checkpoint:
 logging:
   neptune: false
   neptune_creds:
-    project:
-    api_token:
+    project: 'bart5/BarT5'
+    api_token: 'eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJiZmU3YjlkMy0wYTAxLTQ4NjQtYTQzYS1hZmJhZTQwYmMxMmQifQ'
     tags: ''
   every_steps: 100
   grad_l2: true

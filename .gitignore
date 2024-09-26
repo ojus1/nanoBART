@@ -3,3 +3,5 @@ env.yaml
 logs
 scripts
 .neptune
+bartified-flan-t5-xl
+__pycache__/

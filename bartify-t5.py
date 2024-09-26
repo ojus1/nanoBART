@@ -96,8 +96,10 @@ for bart_name, t5_name in name_mapping.items():
 # Load the updated state dict into the BART model
 bart_model.load_state_dict(bart_state_dict, strict=False)
 
-
 bart_model.save_pretrained("./bartified-flan-t5-xl")
+
+t5_tokenizer.bos_token = t5_tokenizer.pad_token
+t5_tokenizer.bos_token_id = t5_tokenizer.pad_token_id
 t5_tokenizer.save_pretrained("./bartified-flan-t5-xl")
 
 import torch
